@@ -1,0 +1,88 @@
+"""
+Hybrid CNN-LSTM Model for Gearbox Fault Diagnosis Using Vibrational Signals
+
+This script implements a hybrid Convolutional Neural Network (CNN) and Long Short-Term Memory (LSTM) model for diagnosing faults in gearboxes using vibrational signals. The dataset includes both healthy and faulty data of gearboxes. The script includes steps for loading and preprocessing the dataset, building and training the model, evaluating its performance with a confusion matrix, and saving the trained model.
+"""
+
+Import the necessary libraries to build the project :
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import confusion_matrix, accuracy_score
+import matplotlib.pyplot as plt
+import seaborn as sns
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv1D, MaxPooling1D, LSTM, Dense, Dropout
+
+# Step 1: Load the dataset
+data = pd.read_csv('path/to/your/dataset.csv')
+
+# Step 2: Preprocess the dataset
+X = data.drop(columns=['label'])
+y = data['label']
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Standardize the features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Reshape data for CNN-LSTM
+# Assuming each sample has 100 timesteps and 1 feature
+X_train = X_train.reshape(X_train.shape[0], 100, 1)
+X_test = X_test.reshape(X_test.shape[0], 100, 1)
+
+# Step 3: Build the Hybrid CNN-LSTM Model
+model = Sequential()
+model.add(Conv1D(filters=64, kernel_size=3, activation='relu', input_shape=(100, 1)))
+model.add(MaxPooling1D(pool_size=2))
+model.add(LSTM(50, activation='relu', return_sequences=True))
+model.add(LSTM(50, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(1, activation='sigmoid'))  # Use 'softmax' for multi-class classification
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Use 'categorical_crossentropy' for multi-class classification
+
+model.summary()
+
+# Step 4: Train the Model
+history = model.fit(X_train, y_train, epochs=100, batch_size=64, validation_split=0.2)
+
+# Step 5: Evaluate the Model
+y_pred = model.predict(X_test)
+y_pred = (y_pred > 0.5).astype(int)
+
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Test Accuracy: {accuracy * 100:.2f}%')
+
+# Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+
+# Plot the confusion matrix
+plt.figure(figsize=(10,7))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.show()
+
+# Step 6: Plot Training History
+plt.plot(history.history['accuracy'], label='train_accuracy')
+plt.plot(history.history['val_accuracy'], label='val_accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+plt.plot(history.history['loss'], label='train_loss')
+plt.plot(history.history['val_loss'], label='val_loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+
+# Step 7: Save the Model
+model.save('gearbox_fault_diagnosis_model.h5')
